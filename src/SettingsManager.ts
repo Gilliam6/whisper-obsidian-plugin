@@ -7,6 +7,7 @@ export interface WhisperSettings {
 	prompt: string;
 	language: string;
 	diarize: boolean;
+	responseFormat: string;
 	saveAudioFile: boolean;
 	saveAudioFilePath: string;
 	debugMode: boolean;
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: WhisperSettings = {
 	prompt: "",
 	language: "en",
 	diarize: true,
+	responseFormat: "srt",
 	saveAudioFile: true,
 	saveAudioFilePath: "",
 	debugMode: false,

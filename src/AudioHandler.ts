@@ -3,31 +3,6 @@ import Whisper from "main";
 import { Notice, MarkdownView } from "obsidian";
 import { getBaseFileName } from "./utils";
 
-interface Segment {
-	speaker?: string;
-	text: string;
-}
-
-// verbose_json (diarized) returns speaker-tagged segments; plain json returns { text }
-function formatTranscript(data: { text?: string; segments?: Segment[] }): string {
-	const segments = data.segments;
-	if (!Array.isArray(segments) || !segments.some((s) => s.speaker))
-		return data.text ?? "";
-	// merge consecutive same-speaker segments into one labeled line
-	const lines: string[] = [];
-	let last: string | null = null;
-	for (const seg of segments) {
-		const speaker = seg.speaker ?? "Unknown";
-		if (speaker === last) {
-			lines[lines.length - 1] += " " + seg.text.trim();
-		} else {
-			lines.push(`${speaker}: ${seg.text.trim()}`);
-			last = speaker;
-		}
-	}
-	return lines.join("\n");
-}
-
 export class AudioHandler {
 	private plugin: Whisper;
 
@@ -66,11 +41,15 @@ export class AudioHandler {
 		formData.append("file", blob, fileName);
 		formData.append("model", this.plugin.settings.model);
 		formData.append("language", this.plugin.settings.language);
+		if (this.plugin.settings.responseFormat)
+			formData.append(
+				"response_format",
+				this.plugin.settings.responseFormat
+			);
 		if (this.plugin.settings.diarize) {
-			// whisperx-api-server: diarize needs align=true and speakers live in verbose_json
+			// whisperx-api-server: diarize needs align=true; use an srt-like response_format to get speaker labels
 			formData.append("diarize", "true");
 			formData.append("align", "true");
-			formData.append("response_format", "verbose_json");
 		}
 		if (this.plugin.settings.prompt)
 			formData.append("prompt", this.plugin.settings.prompt);
@@ -105,7 +84,16 @@ export class AudioHandler {
 				}
 			);
 
-			const transcript = formatTranscript(response.data);
+			if (this.plugin.settings.debugMode) {
+				console.log("Whisper raw response:", response.data);
+			}
+
+			// write the server response as-is; only stringify object bodies (json/verbose_json)
+			const transcript =
+				typeof response.data === "string"
+					? response.data
+					: response.data?.text ??
+					  JSON.stringify(response.data, null, 2);
 
 			// Determine if a new file should be created
 			const activeView =

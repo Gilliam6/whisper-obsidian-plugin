@@ -24,6 +24,7 @@ export class WhisperSettingsTab extends PluginSettingTab {
 		this.createModelSetting();
 		this.createPromptSetting();
 		this.createLanguageSetting();
+		this.createResponseFormatSetting();
 		this.createDiarizeToggleSetting();
 		this.createSaveAudioFileToggleSetting();
 		this.createSaveAudioFilePathSetting();
@@ -133,11 +134,24 @@ export class WhisperSettingsTab extends PluginSettingTab {
 		);
 	}
 
+	private createResponseFormatSetting(): void {
+		this.createTextSetting(
+			"Response format",
+			"response_format sent to the server. The response is written to the note as-is. Use srt/vtt for timestamps and speaker labels; json/verbose_json for structured output.",
+			"srt",
+			this.plugin.settings.responseFormat,
+			async (value) => {
+				this.plugin.settings.responseFormat = value;
+				await this.settingsManager.saveSettings(this.plugin.settings);
+			}
+		);
+	}
+
 	private createDiarizeToggleSetting(): void {
 		new Setting(this.containerEl)
 			.setName("Diarize speakers")
 			.setDesc(
-				"Turn on to label speakers (sends diarize=true, align=true, response_format=verbose_json). Requires a server that supports diarization, e.g. whisperx-api-server."
+				"Turn on to label speakers (sends diarize=true, align=true). Requires a server that supports diarization, e.g. whisperx-api-server. Use an srt/vtt response format to see speaker labels."
 			)
 			.addToggle((toggle) =>
 				toggle
