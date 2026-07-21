@@ -6,6 +6,7 @@ export interface WhisperSettings {
 	model: string;
 	prompt: string;
 	language: string;
+	diarize: boolean;
 	saveAudioFile: boolean;
 	saveAudioFilePath: string;
 	debugMode: boolean;
@@ -15,15 +16,16 @@ export interface WhisperSettings {
 
 export const DEFAULT_SETTINGS: WhisperSettings = {
 	apiKey: "",
-	apiUrl: "https://api.openai.com/v1/audio/transcriptions",
+	apiUrl: "https://localhost:8000/v1/audio/transcriptions",
 	model: "whisper-1",
 	prompt: "",
 	language: "en",
+	diarize: true,
 	saveAudioFile: true,
 	saveAudioFilePath: "",
 	debugMode: false,
 	createNewFileAfterRecording: true,
-	createNewFileAfterRecordingPath: "",
+	createNewFileAfterRecordingPath: "transcriptions/output",
 };
 
 export class SettingsManager {

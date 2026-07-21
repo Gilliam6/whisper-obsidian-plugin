@@ -24,6 +24,7 @@ export class WhisperSettingsTab extends PluginSettingTab {
 		this.createModelSetting();
 		this.createPromptSetting();
 		this.createLanguageSetting();
+		this.createDiarizeToggleSetting();
 		this.createSaveAudioFileToggleSetting();
 		this.createSaveAudioFilePathSetting();
 		this.createNewFileToggleSetting();
@@ -130,6 +131,24 @@ export class WhisperSettingsTab extends PluginSettingTab {
 				await this.settingsManager.saveSettings(this.plugin.settings);
 			}
 		);
+	}
+
+	private createDiarizeToggleSetting(): void {
+		new Setting(this.containerEl)
+			.setName("Diarize speakers")
+			.setDesc(
+				"Turn on to label speakers (sends diarize=true, align=true, response_format=verbose_json). Requires a server that supports diarization, e.g. whisperx-api-server."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.diarize)
+					.onChange(async (value) => {
+						this.plugin.settings.diarize = value;
+						await this.settingsManager.saveSettings(
+							this.plugin.settings
+						);
+					})
+			);
 	}
 
 	private createSaveAudioFileToggleSetting(): void {

@@ -3,6 +3,31 @@ import Whisper from "main";
 import { Notice, MarkdownView } from "obsidian";
 import { getBaseFileName } from "./utils";
 
+interface Segment {
+	speaker?: string;
+	text: string;
+}
+
+// verbose_json (diarized) returns speaker-tagged segments; plain json returns { text }
+function formatTranscript(data: { text?: string; segments?: Segment[] }): string {
+	const segments = data.segments;
+	if (!Array.isArray(segments) || !segments.some((s) => s.speaker))
+		return data.text ?? "";
+	// merge consecutive same-speaker segments into one labeled line
+	const lines: string[] = [];
+	let last: string | null = null;
+	for (const seg of segments) {
+		const speaker = seg.speaker ?? "Unknown";
+		if (speaker === last) {
+			lines[lines.length - 1] += " " + seg.text.trim();
+		} else {
+			lines.push(`${speaker}: ${seg.text.trim()}`);
+			last = speaker;
+		}
+	}
+	return lines.join("\n");
+}
+
 export class AudioHandler {
 	private plugin: Whisper;
 
@@ -41,6 +66,12 @@ export class AudioHandler {
 		formData.append("file", blob, fileName);
 		formData.append("model", this.plugin.settings.model);
 		formData.append("language", this.plugin.settings.language);
+		if (this.plugin.settings.diarize) {
+			// whisperx-api-server: diarize needs align=true and speakers live in verbose_json
+			formData.append("diarize", "true");
+			formData.append("align", "true");
+			formData.append("response_format", "verbose_json");
+		}
 		if (this.plugin.settings.prompt)
 			formData.append("prompt", this.plugin.settings.prompt);
 
@@ -74,6 +105,8 @@ export class AudioHandler {
 				}
 			);
 
+			const transcript = formatTranscript(response.data);
+
 			// Determine if a new file should be created
 			const activeView =
 				this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
@@ -83,7 +116,7 @@ export class AudioHandler {
 			if (shouldCreateNewFile) {
 				await this.plugin.app.vault.create(
 					noteFilePath,
-					`![[${audioFilePath}]]\n${response.data.text}`
+					`![[${audioFilePath}]]\n${transcript}`
 				);
 				await this.plugin.app.workspace.openLinkText(
 					noteFilePath,
@@ -98,12 +131,12 @@ export class AudioHandler {
 					)?.editor;
 				if (editor) {
 					const cursorPosition = editor.getCursor();
-					editor.replaceRange(response.data.text, cursorPosition);
+					editor.replaceRange(transcript, cursorPosition);
 
 					// Move the cursor to the end of the inserted text
 					const newPosition = {
 						line: cursorPosition.line,
-						ch: cursorPosition.ch + response.data.text.length,
+						ch: cursorPosition.ch + transcript.length,
 					};
 					editor.setCursor(newPosition);
 				}
@@ -111,8 +144,14 @@ export class AudioHandler {
 
 			new Notice("Audio parsed successfully.");
 		} catch (err) {
-			console.error("Error parsing audio:", err);
-			new Notice("Error parsing audio: " + err.message);
+			const detail = err.response?.data;
+			console.error("Error parsing audio:", detail ?? err);
+			const msg = detail
+				? typeof detail === "string"
+					? detail
+					: JSON.stringify(detail)
+				: err.message;
+			new Notice("Error parsing audio: " + msg);
 		}
 	}
 }
